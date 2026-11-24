@@ -162,9 +162,9 @@ $('gb').onclick=async()=>{let all=[];try{all=await dbp('all')}catch(e){}if(!all.
 const blob=new Blob([JSON.stringify({app:'ygo-card-builder',v:1,cards:all})],{type:'application/json'});
 const r=await saveFile('ygo-gallery-backup.json',blob);if(r==='ok')toast('Backup downloaded ✓ ('+all.length+' cards)');else if(r==='fail')toast('Could not download the backup')};
 $('gr').onclick=()=>{const f=document.createElement('input');f.type='file';f.accept='.json,application/json';f.onchange=async()=>{const x=f.files[0];if(!x)return;try{const j=JSON.parse(await x.text()),cs=Array.isArray(j.cards)?j.cards:[];let n=0;for(const c of cs){if(c&&c.id&&c.S){await dbp('put',c);n++}}toast('Restored '+n+' cards ✓');openGal()}catch(e){toast('That file is not a valid backup')}};f.click()};
-async function saveFile(name,blob){let d=null;try{d=await claude.use('downloads')}catch(e){}
+async function saveFile(name,blob,mode){let d=null;if(mode==='share'){try{const f=new File([blob],name,{type:'image/png'});await navigator.share({files:[f],title:name});return 'ok'}catch(e){return e&&e.name==='AbortError'?'declined':'fail'}}try{d=await claude.use('downloads')}catch(e){}
 if(d){try{await d.save({filename:name,data:blob});return 'ok'}catch(e){if(e&&e.code==='declined')return 'declined'}}
-if(blob.type==='image/png'&&navigator.canShare){try{const f=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return 'ok'}}catch(e){if(e&&e.name==='AbortError')return 'declined'}}
+if(!mode&&blob.type==='image/png'&&navigator.canShare){try{const f=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return 'ok'}}catch(e){if(e&&e.name==='AbortError')return 'declined'}}
 try{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);return 'ok'}catch(e){return 'fail'}}
 function setOf(url){ofURL=url;if(!url){ofArt=null;draw();return}const i=new Image();i.onload=()=>{ofArt=i;draw()};i.src=url}
 $('ofile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>setOf(r.result);r.readAsDataURL(f)};
@@ -204,8 +204,11 @@ foil(g,W,H,L,T,R,B);if(S.edge==='None'){g.strokeStyle='#000';g.lineWidth=10;g.be
 $('bNew').onclick=()=>{curId=null;S={...D};sync();setArt(null);setOf(null)};
 $('bView').onclick=()=>{edit=!edit;$('hint').style.visibility=edit?'visible':'hidden';draw()};
 $('bSave').onclick=saveCard;$('bGal').onclick=openGal;$('gc').onclick=()=>$('gal').style.display='none';
-$('bExp').onclick=async()=>{const was=edit;edit=false;draw();const c=$('c');const blob=await new Promise(r=>c.toBlob(r,'image/png'));const url=c.toDataURL('image/png');edit=was;draw();const r=await saveFile(((S.name||'').replace(/[^\w -]/g,'').trim()||'card')+'.png',blob);if(r==='declined')return;if(r==='ok'){toast('Card exported ✓');return}
-$('oimg').src=url;$('ov').style.display='flex'};
+$('bExp').onclick=async()=>{const was=edit;edit=false;draw();const c=$('c');const blob=await new Promise(r=>c.toBlob(r,'image/png'));const url=c.toDataURL('image/png');edit=was;draw();const nm=((S.name||'').replace(/[^\w -]/g,'').trim()||'card')+'.png';
+sheet('Save this card',b=>{const im=new Image();im.src=url;im.style.cssText='height:150px;border-radius:6px;margin:0 auto 4px;display:block;flex:1 1 100%;object-fit:contain';b.append(im);
+mk(b,'button','Save to my phone (Downloads)',async()=>{const r=await saveFile(nm,blob,'file');if(r==='ok')toast('Card saved \u2713 Check your Downloads folder');else if(r==='fail')toast('Could not save the card')});
+if(navigator.canShare)mk(b,'button','Share, or save to Photos',async()=>{const r=await saveFile(nm,blob,'share');if(r==='fail')toast('Sharing is not available on this phone')});
+mk(b,'button','Open image (press and hold to save)',()=>{$('sheet').style.display='none';$('oimg').src=url;$('ov').style.display='flex'})})};
 $('oc').onclick=()=>$('ov').style.display='none';
 try{const d=JSON.parse(localStorage.getItem('ygo')||'null');if(d){S={...D,...d.S};if(d.artURL)setArt(d.artURL);if(d.ofURL)setOf(d.ofURL)}}catch(e){}
 sync();draw();

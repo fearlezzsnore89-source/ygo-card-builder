@@ -1,5 +1,7 @@
-const V='ygo-v1',FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const V='ygo-v2',FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
-e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(V).then(h=>h.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(m=>m||caches.match('./index.html'))))});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith((async()=>{const c=await caches.open(V);const cached=await c.match(e.request,{ignoreSearch:true});
+const net=fetch(e.request).then(r=>{if(r&&r.ok)c.put(e.request,r.clone());return r}).catch(()=>null);
+if(cached)return Promise.race([net.then(r=>r||cached),new Promise(res=>setTimeout(()=>res(cached),2500))]);
+const r=await net;return r||(await c.match('./index.html'))||Response.error()})())});
